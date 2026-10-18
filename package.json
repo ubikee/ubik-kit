@@ -1,0 +1,24 @@
+{
+  "name": "ubik-kit",
+  "version": "0.1.0",
+  "description": "Client SDK for Ubik-powered apps: browser login (Authorization Code + PKCE), scoped licenses, device activation and offline verification.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "ubik",
+    "licensing",
+    "oauth",
+    "pkce",
+    "activation"
+  ],
+  "license": "MIT"
+}
