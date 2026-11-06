@@ -99,6 +99,7 @@ call `heartbeat()` when online to renew it.
 - `getLicenses({ baseUrl, accessToken })`
 - `activate({ baseUrl, licenseKey, fingerprint, label, version })`
 - `heartbeat({ baseUrl, deviceToken, fingerprint, version })`
+- `deactivate({ baseUrl, deviceToken })` → frees this device's seat ("deactivate this computer")
 - `report({ baseUrl, deviceToken, licenseKey, fingerprint, code, message, details })`
 - `fetchJwks({ baseUrl })`
 - `verifyDeviceToken(token, keys)` / `verifyOffline({ baseUrl, token, keys })`

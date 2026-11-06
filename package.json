@@ -1,6 +1,6 @@
 {
   "name": "ubik-kit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Client SDK for Ubik-powered apps: browser login (Authorization Code + PKCE), scoped licenses, device activation and offline verification.",
   "type": "module",
   "main": "src/index.js",

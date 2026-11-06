@@ -250,6 +250,11 @@ export function heartbeat({ baseUrl, deviceToken, fingerprint, version }) {
   });
 }
 
+/** Gives this device's seat back to the license (the token may be expired). */
+export function deactivate({ baseUrl, deviceToken }) {
+  return request(`${normalizeBase(baseUrl)}/api/activation/deactivate`, { method: 'POST', token: deviceToken });
+}
+
 /** Sends a fire-and-forget incident report (device token and/or license key). */
 export function report({ baseUrl, deviceToken, licenseKey, fingerprint, code, message, details }) {
   return request(`${normalizeBase(baseUrl)}/api/activation/report`, {
