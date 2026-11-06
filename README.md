@@ -42,9 +42,10 @@ const manual = await activate({ baseUrl, licenseKey: typedKey, fingerprint, labe
 
 `connect()` skips revoked and expired licenses, uses the only one without asking,
 and checks that the owner signed into the device token (`usr`) is the user who
-signed in. Errors carry a `code`: `no_license` (show a link to buy it),
-`license_not_selected` (the user cancelled the pick) or `owner_mismatch`; Ubik
-errors such as `activation_limit_reached` come through unchanged.
+signed in. Errors carry a `code`: `access_denied` (the user said no in Ubik),
+`login_timeout`, `no_license` (show a link to buy it), `license_not_selected`
+(the user cancelled the pick) or `owner_mismatch`; Ubik errors such as
+`activation_limit_reached` come through unchanged.
 
 ## Login
 

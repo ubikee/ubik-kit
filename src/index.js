@@ -6,6 +6,12 @@ import { spawn } from 'node:child_process';
 export const DEFAULT_HEARTBEAT_SECONDS = 24 * 60 * 60;
 export const DEFAULT_GRACE_DAYS = 30;
 
+function kitError(code, message) {
+  const error = new Error(`ubik-kit: ${message}`);
+  error.code = code;
+  return error;
+}
+
 const normalizeBase = (baseUrl) => String(baseUrl ?? '').replace(/\/+$/, '');
 const keysArray = (keys) => (Array.isArray(keys) ? keys : Object.values(keys ?? {}));
 
@@ -116,7 +122,7 @@ export async function login({
   const codePromise = new Promise((resolve, reject) => {
     timer = setTimeout(() => {
       closeServer();
-      reject(new Error('ubik-kit: timed out waiting for the browser'));
+      reject(kitError('login_timeout', 'timed out waiting for the browser'));
     }, timeoutMs);
 
     server.on('request', (req, res) => {
@@ -130,10 +136,10 @@ export async function login({
       closeServer();
 
       const error = url.searchParams.get('error');
-      if (error) return reject(new Error(`ubik-kit: authorization failed (${error})`));
-      if (url.searchParams.get('state') !== state) return reject(new Error('ubik-kit: state mismatch'));
+      if (error) return reject(kitError(error, `authorization failed (${error})`));
+      if (url.searchParams.get('state') !== state) return reject(kitError('state_mismatch', 'state mismatch'));
       const code = url.searchParams.get('code');
-      if (!code) return reject(new Error('ubik-kit: missing authorization code'));
+      if (!code) return reject(kitError('missing_code', 'missing authorization code'));
       resolve(code);
     });
   });
@@ -173,12 +179,6 @@ export function getLicenses({ baseUrl, accessToken }) {
 }
 
 const USABLE_STATUSES = ['issued', 'active'];
-
-function kitError(code, message) {
-  const error = new Error(`ubik-kit: ${message}`);
-  error.code = code;
-  return error;
-}
 
 /** Reads a JWS payload without verifying it (verification happens offline with the JWKS). */
 function decodePayload(token) {

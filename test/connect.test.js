@@ -176,3 +176,20 @@ test('deactivate gives the seat back with the device token', async () => {
     await ubik.close();
   }
 });
+
+test('connect reports a denied consent with its own code', async () => {
+  const ubik = await startFakeUbik({ licenses: [license(1)] });
+  try {
+    const deny = async (url) => {
+      const params = new URL(url).searchParams;
+      const callback = new URL(params.get('redirect_uri'));
+      callback.searchParams.set('error', 'access_denied');
+      callback.searchParams.set('state', params.get('state'));
+      await fetch(callback);
+    };
+    await assert.rejects(connect(options(ubik, { openBrowser: deny })), { code: 'access_denied' });
+    assert.equal(ubik.activated.length, 0);
+  } finally {
+    await ubik.close();
+  }
+});
