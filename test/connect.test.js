@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import http from 'node:http';
-import { connect, usableLicenses } from '../src/index.js';
+import { connect, deactivate, usableLicenses } from '../src/index.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const b64 = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -41,6 +41,10 @@ async function startFakeUbik({ licenses, tokenOwner = (lic) => lic.userId }) {
     if (req.url === '/api/oauth/licenses') {
       if (req.headers.authorization !== 'Bearer oauth-token') return send(401, { error: { code: 'unauthorized' } });
       return send(200, { productId: 1, licenses });
+    }
+    if (req.url === '/api/activation/deactivate') {
+      if (req.headers.authorization !== 'Bearer device-token') return send(401, { error: { code: 'invalid_device_token' } });
+      return send(200, { activation: { id: 1, status: 'deactivated' }, license: { id: 1, activationsCount: 0 } });
     }
     if (req.url === '/api/activation/activate') {
       const lic = licenses.find((item) => item.licenseKey === body.licenseKey);
@@ -154,6 +158,37 @@ test('connect rejects a device token whose owner is not the signed-in user', asy
   const ubik = await startFakeUbik({ licenses: [license(1)], tokenOwner: () => 7 });
   try {
     await assert.rejects(connect(options(ubik)), { code: 'owner_mismatch' });
+  } finally {
+    await ubik.close();
+  }
+});
+
+test('deactivate gives the seat back with the device token', async () => {
+  const ubik = await startFakeUbik({ licenses: [] });
+  try {
+    const freed = await deactivate({ baseUrl: ubik.baseUrl, deviceToken: 'device-token' });
+    assert.equal(freed.activation.status, 'deactivated');
+    await assert.rejects(deactivate({ baseUrl: ubik.baseUrl, deviceToken: 'forged' }), {
+      status: 401,
+      code: 'invalid_device_token',
+    });
+  } finally {
+    await ubik.close();
+  }
+});
+
+test('connect reports a denied consent with its own code', async () => {
+  const ubik = await startFakeUbik({ licenses: [license(1)] });
+  try {
+    const deny = async (url) => {
+      const params = new URL(url).searchParams;
+      const callback = new URL(params.get('redirect_uri'));
+      callback.searchParams.set('error', 'access_denied');
+      callback.searchParams.set('state', params.get('state'));
+      await fetch(callback);
+    };
+    await assert.rejects(connect(options(ubik, { openBrowser: deny })), { code: 'access_denied' });
+    assert.equal(ubik.activated.length, 0);
   } finally {
     await ubik.close();
   }
