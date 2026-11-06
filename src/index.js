@@ -172,6 +172,67 @@ export function getLicenses({ baseUrl, accessToken }) {
   return request(`${normalizeBase(baseUrl)}/api/oauth/licenses`, { token: accessToken });
 }
 
+const USABLE_STATUSES = ['issued', 'active'];
+
+function kitError(code, message) {
+  const error = new Error(`ubik-kit: ${message}`);
+  error.code = code;
+  return error;
+}
+
+/** Reads a JWS payload without verifying it (verification happens offline with the JWKS). */
+function decodePayload(token) {
+  try {
+    return JSON.parse(Buffer.from(String(token).split('.')[1], 'base64url').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/** Licenses that can still be activated: issued or active and not past their expiry. */
+export function usableLicenses(licenses, { now = Date.now() } = {}) {
+  return (licenses ?? []).filter(
+    (license) =>
+      USABLE_STATUSES.includes(license.status) && (!license.expiresAt || Date.parse(license.expiresAt) > now)
+  );
+}
+
+/**
+ * "Connect with Ubik": the user signs in through the browser, one of their
+ * usable licenses for this product is chosen and activated on this device.
+ * With several licenses `pick(licenses)` decides (default: the most recent);
+ * returning nothing cancels. The manual alternative is `activate()` with a
+ * key the user pastes.
+ *
+ * @returns {Promise<{license: object, activation: object}>}
+ */
+export async function connect({
+  baseUrl,
+  clientId,
+  fingerprint = fingerprintFromHost(),
+  label,
+  version,
+  pick,
+  openBrowser,
+  onReady,
+  timeoutMs,
+} = {}) {
+  const session = await login({ baseUrl, clientId, openBrowser, onReady, timeoutMs });
+  const { licenses } = await getLicenses({ baseUrl, accessToken: session.accessToken });
+
+  const usable = usableLicenses(licenses);
+  if (usable.length === 0) throw kitError('no_license', 'no usable license for this product');
+  const license = usable.length === 1 || !pick ? usable[0] : await pick(usable);
+  if (!license) throw kitError('license_not_selected', 'no license was selected');
+  if (!usable.includes(license)) throw kitError('license_not_selected', 'pick() must return one of the given licenses');
+
+  const activation = await activate({ baseUrl, licenseKey: license.licenseKey, fingerprint, label, version });
+  if (decodePayload(activation.token)?.usr !== license.userId) {
+    throw kitError('owner_mismatch', 'the device token does not belong to the signed-in user');
+  }
+  return { license, activation };
+}
+
 /** Activates a license key on a device; returns a signed device token. */
 export function activate({ baseUrl, licenseKey, fingerprint, label, version }) {
   return request(`${normalizeBase(baseUrl)}/api/activation/activate`, {
