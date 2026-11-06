@@ -144,12 +144,15 @@ export async function login({
     });
   });
 
+  // The callback can fail before `await codePromise` below (e.g. a fast "deny"):
+  // mark the rejection as handled now; the await still sees it.
+  codePromise.catch(() => {});
+
   onReady?.({ authorizeUrl: authorizeUrl.toString(), redirectUri });
   try {
     await openBrowser(authorizeUrl.toString());
   } catch (err) {
     closeServer();
-    codePromise.catch(() => {});
     throw err;
   }
 
